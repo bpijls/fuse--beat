@@ -28,35 +28,43 @@ All messages are JSON text frames.
 
 ### Devices
 
-```
-Device                          Server
-  |                               |
-  |--- WebSocket connect -------->|
-  |--- identify (client_type=device) -->|
-  |<-- identified ----------------|
-  |                               |
-  |--- heartbeat ---------------->|  (on each detected beat)
-  |<-- fused_beat ----------------|  (from any device in same group)
-  |                               |
-  |--- ping --------------------->|  (optional keepalive)
-  |<-- pong ----------------------|
+```mermaid
+sequenceDiagram
+    participant D as Device
+    participant S as Server
+
+    D->>S: WebSocket connect
+    D->>S: identify (client_type=device)
+    S->>D: identified
+
+    loop on each detected beat
+        D->>S: heartbeat
+        S->>D: fused_beat (from any device in same group)
+    end
+
+    D->>S: ping (optional keepalive)
+    S->>D: pong
 ```
 
 ### Clients
 
-```
-Client                          Server
-  |                               |
-  |--- WebSocket connect -------->|
-  |--- identify (client_type=client) ->|
-  |--- subscribe (group_id) ----->|
-  |                               |
-  |<-- heartbeat_event -----------|  (from any device in subscribed group)
-  |                               |
-  |--- get_group_devices -------->|  (optional query)
-  |<-- group_devices -------------|
-  |                               |
-  |--- unsubscribe (group_id) --->|
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant S as Server
+
+    C->>S: WebSocket connect
+    C->>S: identify (client_type=client)
+    C->>S: subscribe (group_id)
+
+    loop on every beat in subscribed group
+        S->>C: heartbeat_event
+    end
+
+    C->>S: get_group_devices (optional query)
+    S->>C: group_devices
+
+    C->>S: unsubscribe (group_id)
 ```
 
 > **Note:** clients must send `identify` before any other message. Messages sent before identification are silently ignored.
@@ -296,16 +304,17 @@ Response to `get_device_groups`.
 
 ## Fusion flow
 
-```
-Device A (group: room-1)          Server                  Device B (group: room-1)
-        |                            |                            |
-        |--- heartbeat ------------->|                            |
-        |                            |--- fused_beat ----------->|  (LED triggers)
-        |<-- fused_beat -------------|                            |
-        |  (own LED triggers too)    |                            |
-        |                            |
-        |                     Client subscribed to room-1
-        |                            |--- heartbeat_event ------>|
+```mermaid
+sequenceDiagram
+    participant DA as Device A (room-1)
+    participant S as Server
+    participant DB as Device B (room-1)
+    participant C as Client (subscribed to room-1)
+
+    DA->>S: heartbeat
+    S->>DA: fused_beat (own LED triggers)
+    S->>DB: fused_beat (LED triggers)
+    S->>C: heartbeat_event
 ```
 
 Every device in the group receives `fused_beat` — including the originating device — so all LEDs animate in unison.
