@@ -28,7 +28,7 @@ public:
         // Send heartbeat event when a beat is detected
         SensorProcess* sensor = static_cast<SensorProcess*>(processManager->getProcess("sensor"));
         if (sensor && sensor->hasBeat()) {
-            sendHeartbeat(sensor->getBPM());
+            sendHeartbeat();
         }
     }
 
@@ -50,12 +50,11 @@ private:
         Serial.println(webSocketManager.getDeviceId());
     }
 
-    void sendHeartbeat(float bpm) {
+    void sendHeartbeat() {
         JsonDocument doc;
         doc["type"]         = "heartbeat";
         doc["device_id"]    = webSocketManager.getDeviceId();
         doc["feed_id"]      = configuration.getFeedId();
-        doc["bpm"]          = (int)bpm;
         doc["timestamp_ms"] = (unsigned long)millis();
 
         String msg;

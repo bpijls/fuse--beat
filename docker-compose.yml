@@ -1,0 +1,8 @@
+services:
+  server:
+    build: ./server
+    ports:
+      - "5001:5001"
+    volumes:
+      - ./server:/app   # bind-mount for uvicorn --reload hot-reload
+    command: uvicorn main:app --host 0.0.0.0 --port 5001 --reload
