@@ -123,6 +123,7 @@ async def websocket_endpoint(ws: WebSocket):
                     manager.connect_client(ws)
 
             elif msg_type == "heartbeat" and is_device:
+                print(f"[heartbeat] device={device_id} t={msg.get('timestamp_ms', 0)}", flush=True)
                 await manager.on_heartbeat(db, device_id, msg.get("timestamp_ms", 0))
 
             elif msg_type == "ping":

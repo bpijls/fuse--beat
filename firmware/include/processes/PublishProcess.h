@@ -60,6 +60,7 @@ private:
         String msg;
         serializeJson(doc, msg);
         webSocketManager.sendMessage(msg);
+        Serial.printf("[Publish] heartbeat sent (t=%lu ms)\n", (unsigned long)millis());
     }
 };
 
