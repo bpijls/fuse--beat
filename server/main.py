@@ -118,6 +118,7 @@ async def websocket_endpoint(ws: WebSocket):
                         msg.get("feed_id"),
                     )
                     await manager.connect_device(device_id, ws)
+                    manager.connect_client(ws)
                     await ws.send_text(json.dumps({"type": "identified"}))
                 else:
                     manager.connect_client(ws)
@@ -156,5 +157,4 @@ async def websocket_endpoint(ws: WebSocket):
     finally:
         if is_device and device_id:
             manager.disconnect_device(device_id)
-        else:
-            manager.disconnect_client(ws)
+        manager.disconnect_client(ws)
