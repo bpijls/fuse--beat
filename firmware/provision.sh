@@ -23,7 +23,7 @@ port = sys.argv[1]
 
 COMMANDS = [
     ("wifi RnB morestreet",         "[Serial] WiFi credentials saved"),
-    ("server ws://192.168.0.40:5001", "[Serial] Server URL saved"),
+    ("server ws://192.168.0.40:5001/ws", "[Serial] Server URL saved"),
 ]
 
 def open_port(port, baud=115200):
