@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Fuse! — a heartbeat workshop</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Warm humanist palette */
+  --bone: #f6f1ea;
+  --bone-2: #efe8de;
+  --paper: #fbf7f0;
+  --ink: #2a241c;
+  --ink-2: #4a3f31;
+  --ink-3: #7a6b58;
+  --ink-4: #a89a85;
+  --line: #e4dccd;
+  --line-2: #d4cab6;
+
+  --pulse: #d44a3a;       /* coral red — primary pulse */
+  --pulse-soft: #f0cabf;
+  --pulse-deep: #8a2f24;
+  --sage: #6f8b6a;        /* online green */
+  --sage-soft: #cfd9c8;
+  --amber: #c98b3a;       /* dusk accent */
+  --amber-soft: #ecd6b3;
+
+  --r-sm: 6px;
+  --r: 10px;
+  --r-lg: 18px;
+  --r-pill: 999px;
+
+  --shadow-sm: 0 1px 0 rgba(42,36,28,.04), 0 1px 2px rgba(42,36,28,.06);
+  --shadow: 0 1px 0 rgba(42,36,28,.04), 0 8px 24px -10px rgba(42,36,28,.18);
+
+  --fs-display: "Instrument Serif", "Cormorant Garamond", Georgia, serif;
+  --fs-ui: "Geist", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --fs-mono: "Geist Mono", "JetBrains Mono", ui-monospace, monospace;
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background: var(--bone);
+  color: var(--ink);
+  font-family: var(--fs-ui);
+  font-size: 15px;
+  line-height: 1.45;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  min-height: 100vh;
+}
+
+/* subtle paper grain via radial */
+body::before{
+  content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background:
+    radial-gradient(1200px 800px at 20% -10%, rgba(212,74,58,.04), transparent 60%),
+    radial-gradient(900px 700px at 100% 110%, rgba(201,139,58,.05), transparent 60%);
+}
+
+#app{position:relative;z-index:1}
+
+/* ─── Type ────────────────────────── */
+.serif{ font-family: var(--fs-display); font-weight: 400; letter-spacing: -0.005em; }
+.mono { font-family: var(--fs-mono); font-feature-settings: "ss01","cv11"; }
+.eyebrow{
+  font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--ink-3); font-weight: 500;
+}
+.muted{ color: var(--ink-3); }
+.dim{ color: var(--ink-4); }
+
+h1,h2,h3{ margin:0; font-weight: 400; }
+
+/* ─── Wordmark ────────────────────── */
+.wordmark{
+  display:inline-flex; align-items:baseline; gap:8px;
+  font-family: var(--fs-display); font-size: 28px; line-height: 1;
+  color: var(--ink); letter-spacing: -0.01em;
+}
+.wordmark .mk-glyph{
+  display:inline-block; width: 22px; height: 22px; position: relative;
+  transform: translateY(2px);
+}
+.wordmark .mk-glyph svg{ width:100%; height:100%; display:block; }
+.wordmark .mk-it{ font-style: italic; }
+
+/* ─── Buttons ─────────────────────── */
+.btn{
+  display:inline-flex; align-items:center; gap:8px;
+  height: 40px; padding: 0 18px; border-radius: var(--r-pill);
+  font-family: var(--fs-ui); font-size: 14px; font-weight: 500;
+  border: 1px solid transparent; background: transparent; color: var(--ink);
+  cursor: default; user-select:none; transition: all .15s ease;
+  white-space: nowrap;
+}
+.btn:hover{ transform: translateY(-1px); }
+.btn-primary{ background: var(--ink); color: var(--paper); }
+.btn-primary:hover{ background: #181410; }
+.btn-pulse{ background: var(--pulse); color: #fff8f3; }
+.btn-pulse:hover{ background: #b73c2e; }
+.btn-ghost{ border-color: var(--line-2); color: var(--ink); background: transparent; }
+.btn-ghost:hover{ background: var(--bone-2); }
+.btn-sm{ height: 32px; padding: 0 14px; font-size: 13px; }
+.btn-lg{ height: 48px; padding: 0 26px; font-size: 15px; }
+
+/* ─── Cards & surfaces ────────────── */
+.card{
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ─── Inputs ──────────────────────── */
+.field{ display:flex; flex-direction:column; gap:6px; }
+.field label{ font-size: 12px; color: var(--ink-3); letter-spacing: .02em; }
+.input{
+  height: 42px; padding: 0 14px; border-radius: var(--r);
+  border: 1px solid var(--line-2); background: var(--paper); color: var(--ink);
+  font: 400 14px/1 var(--fs-ui);
+  outline: none; transition: border-color .15s ease, box-shadow .15s ease;
+}
+.input:focus{ border-color: var(--ink-3); box-shadow: 0 0 0 3px rgba(42,36,28,.06); }
+.input.mono{ font-family: var(--fs-mono); font-size: 13px; }
+
+/* ─── Tab nav ─────────────────────── */
+.tabs{
+  display:inline-flex; align-items:center; gap: 2px;
+  padding: 4px; background: var(--bone-2);
+  border-radius: var(--r-pill); border: 1px solid var(--line);
+}
+.tab{
+  height: 34px; padding: 0 16px; border-radius: var(--r-pill);
+  display:inline-flex; align-items:center; gap:8px;
+  font-size: 13.5px; font-weight: 500; color: var(--ink-3);
+  cursor: default; transition: all .15s ease;
+  border: 1px solid transparent;
+}
+.tab:hover{ color: var(--ink); }
+.tab.active{ background: var(--paper); color: var(--ink); border-color: var(--line); box-shadow: var(--shadow-sm); }
+
+/* ─── Status dot ──────────────────── */
+.dot{ width: 8px; height: 8px; border-radius: 50%; display:inline-block; }
+.dot.live{ background: var(--sage); box-shadow: 0 0 0 0 rgba(111,139,106,.6); animation: live-ping 2.4s ease-out infinite; }
+@keyframes live-ping{
+  0%{ box-shadow: 0 0 0 0 rgba(111,139,106,.5); }
+  70%{ box-shadow: 0 0 0 8px rgba(111,139,106,0); }
+  100%{ box-shadow: 0 0 0 0 rgba(111,139,106,0); }
+}
+
+/* ─── Step indicator ──────────────── */
+.steps{ display:flex; align-items:center; gap: 10px; }
+.step{ display:flex; align-items:center; gap: 10px; color: var(--ink-4); white-space: nowrap; }
+.step .num{
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 1px solid var(--line-2); display:inline-flex; align-items:center; justify-content:center;
+  font: 500 12px/1 var(--fs-mono); color: var(--ink-4); background: var(--paper);
+}
+.step.done .num{ background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.step.active{ color: var(--ink); }
+.step.active .num{ border-color: var(--ink); color: var(--ink); }
+.step-sep{ width: 28px; height: 1px; background: var(--line-2); }
+
+/* ─── Scrollbar (subtle) ──────────── */
+*::-webkit-scrollbar{ width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb{ background: rgba(42,36,28,.14); border-radius: 6px; border: 2px solid transparent; background-clip: content-box; }
+*::-webkit-scrollbar-thumb:hover{ background: rgba(42,36,28,.24); background-clip: content-box; border:2px solid transparent; }
+*::-webkit-scrollbar-track{ background: transparent; }
+
+/* ─── Page-level layout shells ────── */
+.shell{ min-height: 100vh; display: flex; flex-direction: column; }
+.shell-hd{
+  display:flex; align-items:center; justify-content:space-between;
+  padding: 20px 32px; border-bottom: 1px solid var(--line);
+  background: rgba(251,247,240,.6);
+  backdrop-filter: blur(6px);
+  position: sticky; top: 0; z-index: 5;
+}
+.shell-bd{ flex: 1; }
+
+.setup-stage{ display:flex; align-items:center; justify-content:center; padding: 32px 32px; min-height: calc(100vh - 72px); }
+.setup-card{ width: 100%; max-width: 760px; padding: 40px 48px; }
+
+/* fade transitions between screens */
+.fade-in{ animation: fade-in .5s ease both; }
+@keyframes fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform:none; } }
+
+/* tags */
+.tag{
+  display:inline-flex; align-items:center; gap: 6px;
+  height: 24px; padding: 0 10px; border-radius: var(--r-pill);
+  background: var(--bone-2); border: 1px solid var(--line);
+  font-size: 12px; color: var(--ink-2); font-weight: 500;
+}
+.tag.pulse{ background: rgba(212,74,58,.08); border-color: rgba(212,74,58,.2); color: var(--pulse-deep); }
+.tag.sage{ background: rgba(111,139,106,.08); border-color: rgba(111,139,106,.25); color: #43583f; }
+.tag.amber{ background: rgba(201,139,58,.1); border-color: rgba(201,139,58,.25); color: #7a5419; }
+
+/* live BPM big readout */
+.bpm-big{
+  display:flex; align-items:baseline; gap: 6px;
+  font-family: var(--fs-display); line-height: 1;
+}
+.bpm-big .n{ font-size: 88px; font-weight: 400; letter-spacing: -0.02em; }
+.bpm-big .u{ font-size: 18px; color: var(--ink-3); font-family: var(--fs-ui); font-weight: 500; letter-spacing: .04em; text-transform: uppercase; }
+
+/* helper */
+.row{ display:flex; align-items:center; gap: 12px; }
+.col{ display:flex; flex-direction:column; gap: 12px; }
+.spread{ display:flex; align-items:center; justify-content:space-between; }
+.divider{ height: 1px; background: var(--line); width: 100%; }
+.vdivider{ width: 1px; align-self: stretch; background: var(--line); }
+
+.kbd{
+  display:inline-flex; align-items:center; height: 20px; padding: 0 6px;
+  border: 1px solid var(--line-2); border-bottom-width: 2px; border-radius: 5px;
+  font: 500 11px/1 var(--fs-mono); color: var(--ink-2); background: var(--paper);
+}
+</style>
+
+<!-- React + Babel (pinned) -->
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<!-- esp-web-tools: WebSerial firmware flasher (requires HTTPS or localhost) -->
+<script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js"></script>
+</head>
+<body>
+<div id="app"></div>
+
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="fuse-shared.jsx"></script>
+<script type="text/babel" src="fuse-setup.jsx"></script>
+<script type="text/babel" src="fuse-main.jsx"></script>
+<script type="text/babel" src="fuse-app.jsx"></script>
+</body>
+</html>

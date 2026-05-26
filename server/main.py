@@ -1,8 +1,10 @@
 import asyncio
 import json
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.staticfiles import StaticFiles
 
 import db as database
 from router import router
@@ -158,3 +160,14 @@ async def websocket_endpoint(ws: WebSocket):
         if is_device and device_id:
             manager.disconnect_device(device_id)
         manager.disconnect_client(ws)
+
+
+# ── Static files ──────────────────────────────────────────────────────────────
+
+_firmware_dir = os.path.join(os.path.dirname(__file__), "static", "firmware")
+if os.path.isdir(_firmware_dir):
+    app.mount("/firmware", StaticFiles(directory=_firmware_dir), name="firmware")
+
+_static_dir = os.environ.get("STATIC_DIR", "")
+if _static_dir and os.path.isdir(_static_dir):
+    app.mount("/", StaticFiles(directory=_static_dir, html=True), name="static")

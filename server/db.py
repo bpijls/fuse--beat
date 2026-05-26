@@ -5,8 +5,9 @@ DB_PATH = "fusebeat.db"
 CREATE_SCHEMA = """
 CREATE TABLE IF NOT EXISTS devices (
     device_id TEXT PRIMARY KEY,
-    color     TEXT NOT NULL DEFAULT '#FFFFFF',
-    feed_id   TEXT
+    color     TEXT NOT NULL DEFAULT '#FF0000',
+    feed_id   TEXT,
+    name      TEXT
 );
 
 CREATE TABLE IF NOT EXISTS groups (
@@ -25,7 +26,12 @@ async def init_db() -> aiosqlite.Connection:
     db = await aiosqlite.connect(DB_PATH)
     db.row_factory = aiosqlite.Row
     await db.executescript(CREATE_SCHEMA)
-    await db.commit()
+    # Add name column if it doesn't exist yet (migration for existing DBs)
+    try:
+        await db.execute("ALTER TABLE devices ADD COLUMN name TEXT")
+        await db.commit()
+    except Exception:
+        pass  # column already exists
     return db
 
 
@@ -33,10 +39,22 @@ async def init_db() -> aiosqlite.Connection:
 
 async def upsert_device(db, device_id: str, color: str, feed_id: str | None):
     await db.execute(
-        """INSERT INTO devices (device_id, color, feed_id)
-           VALUES (?, ?, ?)
-           ON CONFLICT(device_id) DO UPDATE SET color=excluded.color, feed_id=excluded.feed_id""",
+        """INSERT INTO devices (device_id, color, feed_id, name)
+           VALUES (?, ?, ?, NULL)
+           ON CONFLICT(device_id) DO UPDATE SET
+               color=excluded.color,
+               feed_id=excluded.feed_id""",
         (device_id, color, feed_id),
+    )
+    await db.commit()
+
+
+async def set_device_name(db, device_id: str, name: str):
+    await db.execute(
+        """INSERT INTO devices (device_id, color, feed_id, name)
+           VALUES (?, '#FF0000', NULL, ?)
+           ON CONFLICT(device_id) DO UPDATE SET name=excluded.name""",
+        (device_id, name),
     )
     await db.commit()
 

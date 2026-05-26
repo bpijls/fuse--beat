@@ -20,11 +20,24 @@ class ColorUpdate(BaseModel):
     color: str
 
 
+class NameUpdate(BaseModel):
+    name: str
+
+
 @router.put("/devices/{device_id}/color")
 async def update_color(device_id: str, body: ColorUpdate, conn=Depends(get_db)):
     updated = await database.update_device_color(conn, device_id, body.color)
     if not updated:
         raise HTTPException(404, "Device not found")
+    return {"ok": True}
+
+
+@router.put("/devices/{device_id}/name")
+async def update_name(device_id: str, body: NameUpdate, conn=Depends(get_db)):
+    name = body.name.strip()
+    if not name:
+        raise HTTPException(400, "name required")
+    await database.set_device_name(conn, device_id, name)
     return {"ok": True}
 
 
@@ -38,6 +51,20 @@ async def device_groups(device_id: str, conn=Depends(get_db)):
 @router.get("/groups")
 async def list_groups(conn=Depends(get_db)):
     return await database.get_all_groups(conn)
+
+
+@router.get("/groups/summary")
+async def groups_summary(conn=Depends(get_db)):
+    groups = await database.get_all_groups(conn)
+    result = []
+    for g in groups:
+        devices = await database.get_group_devices(conn, g)
+        result.append({
+            "group_id": g,
+            "device_count": len(devices),
+            "colors": [d["color"] for d in devices],
+        })
+    return result
 
 
 @router.post("/groups/{group_id}", status_code=201)
