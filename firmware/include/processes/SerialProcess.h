@@ -1,6 +1,7 @@
 #ifndef SERIAL_PROCESS_H
 #define SERIAL_PROCESS_H
 
+#include <WiFi.h>
 #include "Process.h"
 #include "Configuration.h"
 #include "WebSocketManager.h"
@@ -90,6 +91,8 @@ private:
             Serial.println(webSocketManager.isConnected() ? "Connected" : "Disconnected");
             Serial.print("[Serial] Device ID: ");
             Serial.println(webSocketManager.getDeviceId());
+            Serial.print("[Serial] MAC: ");
+            Serial.println(WiFi.macAddress());
             Serial.print("[Serial] Raw mode: ");
             Serial.println(rawSignalMode ? "ON" : "OFF");
         }
