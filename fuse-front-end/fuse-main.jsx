@@ -22,43 +22,118 @@ function StudioHeader({ tab, setTab, me, bpm, onReprovision, wsConnected }) {
           </div>
         ))}
       </div>
-      <div style={{ display:"flex", alignItems:"center", gap: 14 }}>
+      <div>
         <button className="btn btn-ghost btn-sm" onClick={onReprovision} title="Re-pair this sensor or set up a new one">
           ↻ Set up sensor
         </button>
-        <span style={{ width: 1, height: 22, background: "var(--line)" }}/>
-        <div style={{ textAlign:"right" }}>
-          <div style={{ fontSize: 12, color:"var(--ink-3)" }}>{me.name} · {me.mac.slice(-5)}</div>
-          <div className="mono" style={{ fontSize: 13, fontWeight: 500 }}>
-            <span style={{ color:"var(--pulse)" }}>♥</span> {bpm} bpm
-          </div>
-        </div>
-        {wsConnected
-          ? <span className="tag sage"><span className="dot live"/>online</span>
-          : <span className="tag amber">connecting…</span>
-        }
       </div>
     </div>
   );
 }
 
 // ─── REALTIME ────────────────────────────────────────────────
-// A calibration view: teaches participants what the optical sensor sees.
 function RealtimeTab({ me, intensity }) {
   const [conn, setConn] = useStateM("idle"); // idle | connecting | live
-  const [w, setW] = useStateM(900);
-  const wrapRef = useRefM(null);
+  const [w, setW]       = useStateM(900);
+  const wrapRef   = useRefM(null);
+  const canvasRef = useRefM(null);
+  const portRef   = useRefM(null);
+  const writerRef = useRefM(null);
+  const readerRef = useRefM(null);
+  const buf1Ref   = useRefM([]); // raw IR — plotted blue
+  const buf2Ref   = useRefM([]); // IR + beat marker spike — plotted red
+  const MAX_PTS   = 400;         // ~4 s at 100 Hz
+
   useEffectM(() => {
     const ro = new ResizeObserver(es => { if (es[0]) setW(Math.max(400, es[0].contentRect.width - 2)); });
     if (wrapRef.current) ro.observe(wrapRef.current);
     return () => ro.disconnect();
   }, []);
 
-  const connect = () => {
-    setConn("connecting");
-    setTimeout(() => setConn("live"), 900);
+  // Cleanup when the tab is hidden / component unmounts
+  useEffectM(() => () => { doClose(); }, []);
+
+  const doClose = async () => {
+    if (readerRef.current) {
+      try { await readerRef.current.cancel(); } catch (_) {}
+      await new Promise(r => setTimeout(r, 50)); // let releaseLock() run in readLoop's finally
+    }
+    if (writerRef.current) {
+      try { await writerRef.current.write(new TextEncoder().encode("rawmode off\n")); } catch (_) {}
+      try { writerRef.current.releaseLock(); } catch (_) {}
+      writerRef.current = null;
+    }
+    if (portRef.current) {
+      try { await portRef.current.close(); } catch (_) {}
+      portRef.current = null;
+    }
+    setConn("idle");
   };
-  const disconnect = () => setConn("idle");
+
+  const connect = async () => {
+    setConn("connecting");
+    try {
+      const port = await navigator.serial.requestPort();
+      await port.open({ baudRate: 115200 });
+      portRef.current = port;
+      const writer = port.writable.getWriter();
+      writerRef.current = writer;
+      await writer.write(new TextEncoder().encode("rawmode on\n"));
+      buf1Ref.current = [];
+      buf2Ref.current = [];
+      setConn("live");
+      readLoop(port);
+    } catch (err) {
+      console.error("[RealtimeTab] connect:", err);
+      setConn("idle");
+    }
+  };
+
+  const readLoop = async (port) => {
+    const dec = new TextDecoder();
+    let partial = "";
+    let reader;
+    try {
+      reader = port.readable.getReader();
+      readerRef.current = reader;
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        partial += dec.decode(value);
+        const lines = partial.split("\n");
+        partial = lines.pop() || "";
+        for (const line of lines) {
+          const parts = line.trim().split(",");
+          if (parts.length === 2) {
+            const v1 = parseInt(parts[0]);
+            const v2 = parseInt(parts[1]);
+            if (!isNaN(v1) && !isNaN(v2) && v1 > 0) {
+              buf1Ref.current.push(v1);
+              buf2Ref.current.push(v2);
+              if (buf1Ref.current.length > MAX_PTS) buf1Ref.current.shift();
+              if (buf2Ref.current.length > MAX_PTS) buf2Ref.current.shift();
+            }
+          }
+        }
+      }
+    } catch (_) {}
+    finally {
+      if (reader) { try { reader.releaseLock(); } catch (_) {} }
+      readerRef.current = null;
+    }
+  };
+
+  // Canvas draw loop while live
+  useEffectM(() => {
+    if (conn !== "live") return;
+    let id;
+    const draw = () => {
+      rtDraw(canvasRef.current, buf1Ref.current, buf2Ref.current);
+      id = requestAnimationFrame(draw);
+    };
+    id = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(id);
+  }, [conn]);
 
   return (
     <div style={{ padding: "32px 32px 64px", maxWidth: 1400, margin: "0 auto" }}>
@@ -73,12 +148,10 @@ function RealtimeTab({ me, intensity }) {
           </p>
         </div>
         <div style={{ display:"flex", alignItems:"center", gap: 10 }}>
-          {conn === "live" && (
-            <>
-              <span className="tag sage"><span className="dot live"/>serial open</span>
-              <button className="btn btn-ghost btn-sm" onClick={disconnect}>Disconnect</button>
-            </>
-          )}
+          {conn === "live" && <>
+            <span className="tag sage"><span className="dot live"/>serial open</span>
+            <button className="btn btn-ghost btn-sm" onClick={doClose}>Disconnect</button>
+          </>}
           {conn === "connecting" && <span className="tag amber">opening port…</span>}
           {conn === "idle" && <span className="tag">offline</span>}
         </div>
@@ -93,27 +166,74 @@ function RealtimeTab({ me, intensity }) {
           <p className="muted" style={{ fontSize: 14, maxWidth: 500, margin: 0 }}>
             Your browser will ask which USB device to talk to — pick the one labelled <span className="mono" style={{ fontSize: 12 }}>usbmodem-FUSE…</span>.
           </p>
-          <button className={"btn btn-pulse btn-lg"} onClick={connect} disabled={conn === "connecting"} style={conn === "connecting" ? { opacity: 0.6 } : null}>
+          <button className="btn btn-pulse btn-lg" onClick={connect} disabled={conn === "connecting"} style={conn === "connecting" ? { opacity: 0.6 } : {}}>
             {conn === "connecting" ? "Connecting…" : "Connect →"}
           </button>
         </div>
       ) : (
         <div className="card" style={{ padding: 28, display:"flex", flexDirection:"column", gap: 16 }}>
           <div className="spread">
-            <div className="eyebrow">Translucency · last 8 seconds</div>
+            <div className="eyebrow">Raw IR signal · last 4 s</div>
             <div style={{ fontSize: 12, color:"var(--ink-3)", maxWidth: 540, textAlign:"right", lineHeight: 1.5 }}>
               Rest your fingertip on the pad and watch the wave. Try pressing softly, then firmly — find the touch that makes it cleanest.
             </div>
           </div>
           <div ref={wrapRef} style={{ minWidth: 0 }}>
-            <div style={{ borderRadius: 12, overflow:"hidden", background: "var(--paper)", border: "1px solid var(--line)", padding: 4 }}>
-              <TranslucencyWaveform width={w} height={320} amplitude={1} noise={0.05} clipped={false} color={"var(--pulse)"} />
+            <div style={{ borderRadius: 12, overflow:"hidden", border: "1px solid var(--line)" }}>
+              <canvas ref={canvasRef} width={w} height={320} style={{ display:"block", width:"100%", height: 320 }} />
             </div>
+          </div>
+          <div style={{ display:"flex", gap: 20, fontSize: 12, color:"var(--ink-3)" }}>
+            <span style={{ display:"flex", alignItems:"center", gap: 6 }}>
+              <span style={{ width: 24, height: 2, background:"rgba(80,140,220,0.9)", display:"inline-block", borderRadius: 1 }} />
+              IR signal
+            </span>
+            <span style={{ display:"flex", alignItems:"center", gap: 6 }}>
+              <span style={{ width: 10, height: 10, background:"rgba(100,200,100,0.9)", display:"inline-block", borderRadius: "50%" }} />
+              Beat detected
+            </span>
           </div>
         </div>
       )}
     </div>
   );
+}
+
+function rtDraw(canvas, buf1, buf2) {
+  if (!canvas || buf1.length < 2) return;
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;
+  ctx.fillStyle = "#13110f";
+  ctx.fillRect(0, 0, W, H);
+
+  const lo  = Math.min(...buf1);
+  const hi  = Math.max(...buf1);
+  const rng = Math.max(hi - lo, 1);
+  const pad = 12;
+  const toY = v => pad + (H - 2 * pad) * (1 - (v - lo) / rng);
+  const toX = (i, n) => (i / (n - 1)) * W;
+  const n   = buf1.length;
+
+  // IR signal — blue line
+  ctx.beginPath();
+  ctx.strokeStyle = "rgba(80,140,220,0.9)";
+  ctx.lineWidth = 1.5;
+  ctx.lineJoin = "round";
+  buf1.forEach((v, i) => {
+    const x = toX(i, n), y = toY(v);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Beat markers — green circle wherever channel 2 diverges from channel 1 by > 1
+  ctx.fillStyle = "rgba(100,200,100,0.9)";
+  for (let i = 0; i < n; i++) {
+    if ((buf2[i] - buf1[i]) > 1.0) {
+      ctx.beginPath();
+      ctx.arc(toX(i, n), toY(buf1[i]), 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
 }
 
 // finger + sensor cross-section visual

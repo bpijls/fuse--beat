@@ -16,7 +16,12 @@ function App() {
   const [joinedId, setJoinedId] = React.useState(null);
   const [sensorName, setSensorName] = React.useState("");
   const [deviceMac, setDeviceMac] = React.useState(null);
+  const [wsServer, setWsServer] = React.useState(null);
   const socket = useFuseSocket();
+
+  React.useEffect(() => {
+    fetch("/config").then(r => r.json()).then(d => setWsServer(d.ws_server)).catch(() => {});
+  }, []);
 
   // "Me" — a stable participant for this session
   const me = React.useMemo(() => {
@@ -45,9 +50,9 @@ function App() {
 
   return (
     <>
-      {screen === "welcome"  && <WelcomeScreen  onStart={() => goTo("firmware")} />}
+      {screen === "welcome"  && <WelcomeScreen  onStart={() => goTo("firmware")} onSkip={() => goTo("studio")} />}
       {screen === "firmware" && <FirmwareScreen onNext={(mac) => { setDeviceMac(mac); goTo("network"); }} />}
-      {screen === "network"  && <NetworkScreen  mac={deviceMac || me.mac} onNext={(nm) => { setSensorName(nm && nm.trim()); goTo("ready"); }} />}
+      {screen === "network"  && <NetworkScreen  mac={deviceMac || me.mac} wsServer={wsServer} onNext={(nm) => { setSensorName(nm && nm.trim()); goTo("ready"); }} />}
       {screen === "ready"    && <ReadyScreen    name={sensorName || me.name} onEnter={() => goTo("studio")} />}
       {screen === "studio"   && (
         <div className="shell fade-in">

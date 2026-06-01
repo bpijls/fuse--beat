@@ -32,7 +32,7 @@ function SetupHeader({ step }) {
 }
 
 // ─── 0. Welcome ──────────────────────────────────────────────
-function WelcomeScreen({ onStart }) {
+function WelcomeScreen({ onStart, onSkip }) {
   return (
     <div className="shell">
       <div className="shell-hd">
@@ -67,6 +67,12 @@ function WelcomeScreen({ onStart }) {
             <span>③ Find your team</span>
             <span>④ Make something fun</span>
           </div>
+          <button
+            onClick={onSkip}
+            style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--ink-3)", textDecoration: "underline", padding: 0 }}
+          >
+            Already set up? Skip to studio →
+          </button>
         </div>
       </div>
     </div>);
@@ -244,7 +250,7 @@ function FuseMarkInline({ x = 0, y = 0, size = 20 }) {
 }
 
 // ─── 2. Network ──────────────────────────────────────────────
-function NetworkScreen({ mac, onNext }) {
+function NetworkScreen({ mac, wsServer, onNext }) {
   const [ssid, setSsid] = useStateS("iotroam");
   const [pw, setPw] = useStateS("");
   const [sensorName, setSensorName] = useStateS("");
@@ -287,9 +293,10 @@ function NetworkScreen({ mac, onNext }) {
       }
 
       // ── Provision WiFi + server URL ───────────────────────
+      const serverUrl = wsServer || `ws://${window.location.host}/ws`;
       await writer.write(enc.encode(`wifi ${ssid} ${pw}\n`));
       await new Promise(r => setTimeout(r, 800));
-      await writer.write(enc.encode(`server ws://${window.location.host}/ws\n`));
+      await writer.write(enc.encode(`server ${serverUrl}\n`));
       await new Promise(r => setTimeout(r, 800));
 
       writer.releaseLock();
