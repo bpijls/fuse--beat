@@ -62,24 +62,51 @@ void loop() {
     WiFiProcess* wifiProc = static_cast<WiFiProcess*>(processManager.getProcess("wifi"));
     bool wifiConnected = wifiProc && wifiProc->isWiFiConnected();
 
-    static bool wasConnected = false;
-    static bool wasRawMode   = false;
+    static bool wasConnected        = false;
+    static bool wasRawMode          = false;
+    static bool rawEnteredConnected = false;
 
-    // Raw signal mode: halt all WiFi/WS processes to avoid serial contention
     if (rawSignalMode && !wasRawMode) {
-        Serial.println("[FuseBeat] Raw mode ON — halting WiFi/WS");
-        webSocketManager.disconnect();
-        processManager.haltProcess("publish");
-        processManager.haltProcess("receive");
-        processManager.haltProcess("wifi");
-        wasConnected = false;
+        if (wasConnected) {
+            // Already connected: keep WS alive, only suppress heartbeat sends
+            Serial.println("[FuseBeat] Raw mode ON — WS stays live, heartbeats suppressed");
+            processManager.haltProcess("publish");
+            rawEnteredConnected = true;
+        } else {
+            // Not connected: stop all WiFi/WS activity
+            Serial.println("[FuseBeat] Raw mode ON — halting WiFi/WS");
+            processManager.haltProcess("wifi");
+            processManager.haltProcess("publish");
+            processManager.haltProcess("receive");
+            rawEnteredConnected = false;
+        }
+        {
+            LedProcess* led = static_cast<LedProcess*>(processManager.getProcess("led"));
+            if (led) { ledsBreathing.setColor(0x00FF00); led->setBehavior(&ledsBreathing); }
+        }
     } else if (!rawSignalMode && wasRawMode) {
-        Serial.println("[FuseBeat] Raw mode OFF — resuming WiFi/WS");
-        processManager.startProcess("wifi");
+        if (rawEnteredConnected && wifiConnected) {
+            // WS was kept alive and is still up: just resume heartbeats
+            Serial.println("[FuseBeat] Raw mode OFF — resuming heartbeats");
+            processManager.startProcess("publish");
+        } else {
+            // Wasn't connected, or lost connection during raw mode: restart WiFi
+            Serial.println("[FuseBeat] Raw mode OFF — resuming WiFi/WS");
+            processManager.startProcess("wifi");
+        }
+        rawEnteredConnected = false;
+        {
+            LedProcess* led = static_cast<LedProcess*>(processManager.getProcess("led"));
+            if (led) { ledsBreathing.setColor(wifiConnected ? 0x0000FF : 0xFF0000); led->setBehavior(&ledsBreathing); }
+        }
     }
     wasRawMode = rawSignalMode;
 
     if (rawSignalMode) {
+        // Keep WS connection alive when it was maintained through raw mode
+        if (rawEnteredConnected && wifiConnected) {
+            webSocketManager.update();
+        }
         processManager.updateProcesses();
         return;
     }

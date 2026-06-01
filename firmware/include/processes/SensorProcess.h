@@ -2,10 +2,12 @@
 #define SENSOR_PROCESS_H
 
 #include "Process.h"
+#include "ProcessManager.h"
 #include "Timer.h"
 #include "config.h"
 #include <Wire.h>
 #include <MAX30105.h>
+#include "processes/ButtonProcess.h"
 
 extern bool rawSignalMode;
 
@@ -80,9 +82,7 @@ public:
                 negSlopeEnv    = 0.0f;
                 inFallingFlank = false;
                 settleCount    = 0;
-                if (rawSignalMode) {
-                    Serial.print(irValue); Serial.print(','); Serial.println(irValue);
-                }
+                if (rawSignalMode) sendRaw(irValue, false);
                 continue;
             }
 
@@ -107,9 +107,7 @@ public:
                 settleCount++;
                 prevAC      = ac;
                 negSlopeEnv = 0.0f;
-                if (rawSignalMode) {
-                    Serial.print(irValue); Serial.print(','); Serial.println(irValue);
-                }
+                if (rawSignalMode) sendRaw(irValue, false);
                 continue;
             }
 
@@ -166,14 +164,7 @@ public:
             if (inFallingFlank && smoothSlope > resetThresh) inFallingFlank = false;
             if (nowFalling) inFallingFlank = true;
 
-            // Raw mode: two comma-separated values.
-            // Channel 2 = irValue+1000 on the exact detection sample.
-            if (rawSignalMode) {
-                long marker = thisBeat ? irValue + 1000L : irValue;
-                Serial.print(irValue);
-                Serial.print(',');
-                Serial.println(marker);
-            }
+            if (rawSignalMode) sendRaw(irValue, thisBeat);
         }
     }
 
@@ -200,6 +191,13 @@ private:
     unsigned long lastBeatTime;
     float         currentBPM;
     unsigned long lastBeatInterval;
+
+    void sendRaw(long irValue, bool isBeat) {
+        ButtonProcess* btn = static_cast<ButtonProcess*>(processManager->getProcess("button"));
+        if (!btn || !btn->isPressed()) return;
+        long marker = isBeat ? irValue + 1000L : irValue;
+        Serial.print(irValue); Serial.print(','); Serial.println(marker);
+    }
 };
 
 #endif // SENSOR_PROCESS_H

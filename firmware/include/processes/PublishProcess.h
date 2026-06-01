@@ -6,6 +6,7 @@
 #include "Configuration.h"
 #include "ProcessManager.h"
 #include "processes/SensorProcess.h"
+#include "processes/ButtonProcess.h"
 #include <ArduinoJson.h>
 
 class PublishProcess : public Process {
@@ -25,9 +26,10 @@ public:
 
         if (!nowConnected) return;
 
-        // Send heartbeat event when a beat is detected
-        SensorProcess* sensor = static_cast<SensorProcess*>(processManager->getProcess("sensor"));
-        if (sensor && sensor->hasBeat()) {
+        // Send heartbeat event when a beat is detected and the button is held
+        SensorProcess*  sensor = static_cast<SensorProcess*>(processManager->getProcess("sensor"));
+        ButtonProcess*  btn    = static_cast<ButtonProcess*>(processManager->getProcess("button"));
+        if (sensor && sensor->hasBeat() && btn && btn->isPressed()) {
             sendHeartbeat();
         }
     }

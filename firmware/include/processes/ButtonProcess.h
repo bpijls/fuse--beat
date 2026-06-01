@@ -5,8 +5,6 @@
 #include "config.h"
 #include "Configuration.h"
 
-extern bool rawSignalMode;
-
 class ButtonProcess : public Process {
 public:
     ButtonProcess()
@@ -15,6 +13,8 @@ public:
           pressedAt(0),
           longPressHandled(false)
     {}
+
+    bool isPressed() const { return lastState == LOW; }
 
     void setup() override {
         pinMode(BUTTON_PIN, INPUT_PULLUP);
@@ -39,14 +39,7 @@ public:
             }
         }
         else if (state == HIGH && lastState == LOW) {
-            // Button released
-            unsigned long held = now - pressedAt;
-            if (!longPressHandled && held < 1000) {
-                // Short press: toggle raw mode
-                rawSignalMode = !rawSignalMode;
-                Serial.print("[Button] Raw signal mode: ");
-                Serial.println(rawSignalMode ? "ON" : "OFF");
-            }
+            // Button released — no action on short press
         }
 
         lastState = state;
