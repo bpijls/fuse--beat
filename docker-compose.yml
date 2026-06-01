@@ -6,6 +6,8 @@ services:
     volumes:
       - ./server:/app            # bind-mount for uvicorn --reload hot-reload
       - ./fuse-front-end:/fuse-front-end  # serve front-end as static files
+    env_file:
+      - .env
     environment:
       - STATIC_DIR=/fuse-front-end
     command: uvicorn main:app --host 0.0.0.0 --port 5001 --reload
