@@ -3,11 +3,16 @@ import json
 import os
 from contextlib import asynccontextmanager
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 
+load_dotenv()
+
 import db as database
 from router import router
+
+WS_SERVER = os.environ.get("WS_SERVER", f"ws://localhost:5001/ws")
 
 
 # ── Connection manager ────────────────────────────────────────────────────────
@@ -89,6 +94,11 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 app.include_router(router)
+
+
+@app.get("/config")
+def get_config():
+    return {"ws_server": WS_SERVER}
 
 
 # ── WebSocket endpoint ────────────────────────────────────────────────────────
