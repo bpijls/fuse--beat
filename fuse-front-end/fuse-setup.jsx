@@ -80,7 +80,7 @@ function WelcomeScreen({ onStart, onSkip }) {
 
 // ─── 1. Firmware (real WebSerial flash via esp-web-tools) ────
 function FirmwareScreen({ onNext }) {
-  // idle | checking | verified | failed
+  // idle | checking | verified | blocked | failed
   const [phase, setPhase] = useStateS("idle");
   const [deviceMac, setDeviceMac] = useStateS(null);
 
@@ -113,12 +113,17 @@ function FirmwareScreen({ onNext }) {
       writer.releaseLock();
       await port.close();
 
-      if (mac) {
-        setDeviceMac(mac);
-        setPhase("verified");
-      } else {
-        setPhase("failed");
-      }
+      if (!mac) { setPhase("failed"); return; }
+
+      // Check whitelist before proceeding
+      try {
+        const resp = await fetch(`https://whitelist.feib.nl/api/v1/check/${mac}`);
+        const data = await resp.json();
+        if (!data.whitelisted) { setDeviceMac(mac); setPhase("blocked"); return; }
+      } catch (_) { setPhase("failed"); return; }
+
+      setDeviceMac(mac);
+      setPhase("verified");
     } catch (err) {
       console.error("[FirmwareScreen] check error:", err);
       setPhase("failed");
@@ -126,6 +131,8 @@ function FirmwareScreen({ onNext }) {
   };
 
   const verified = phase === "verified";
+  const blocked  = phase === "blocked";
+  const disabled = blocked;
 
   return (
     <div className="shell">
@@ -140,7 +147,7 @@ function FirmwareScreen({ onNext }) {
             Use the white USB-C cable on your bench. We'll talk to it directly through your browser — no installs, no driver wrangling. Requires Chrome or Edge.
           </p>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginTop: 32, alignItems: "stretch" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginTop: 32, alignItems: "stretch", opacity: disabled ? 0.45 : 1, pointerEvents: disabled ? "none" : "auto" }}>
             <div style={{
               borderRadius: 14, border: "1px solid var(--line)", background: "var(--bone-2)",
               padding: 28, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 18, minHeight: 220
@@ -204,6 +211,23 @@ function FirmwareScreen({ onNext }) {
               )}
             </div>
           </div>
+
+          {blocked && (
+            <div style={{
+              marginTop: 24, padding: 18, borderRadius: 12,
+              background: "rgba(212,74,58,.08)", border: "1px solid rgba(212,74,58,.3)",
+              display: "flex", alignItems: "flex-start", gap: 14
+            }}>
+              <span style={{ fontSize: 20, lineHeight: 1 }}>⊘</span>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 15 }}>Device not registered</div>
+                <div style={{ fontSize: 13, color: "var(--ink-2)", marginTop: 4, lineHeight: 1.5 }}>
+                  <span className="mono" style={{ fontSize: 12 }}>{deviceMac}</span> is not on the workshop whitelist.
+                  Ask an instructor to register this MAC address before continuing.
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
