@@ -42,6 +42,7 @@ private:
         doc["type"]        = "identify";
         doc["client_type"] = "device";
         doc["device_id"]   = webSocketManager.getDeviceId();
+        doc["mac"]         = webSocketManager.getMac();
         doc["feed_id"]     = configuration.getFeedId();
         doc["color"]       = configuration.getDeviceColor();
 

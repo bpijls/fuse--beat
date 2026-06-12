@@ -3,6 +3,7 @@ import json
 import os
 from contextlib import asynccontextmanager
 
+import httpx
 from dotenv import load_dotenv
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
@@ -12,7 +13,18 @@ load_dotenv()
 import db as database
 from router import router
 
-WS_SERVER = os.environ.get("WS_SERVER", f"ws://localhost:5001/ws")
+WS_SERVER      = os.environ.get("WS_SERVER",      "ws://localhost:5001/ws")
+WHITELIST_URL  = os.environ.get("WHITELIST_URL",  "https://whitelist.feib.nl")
+
+
+async def is_mac_whitelisted(mac: str) -> bool:
+    url = f"{WHITELIST_URL.rstrip('/')}/api/v1/check/{mac}"
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(url)
+            return resp.status_code == 200 and resp.json().get("whitelisted", False)
+    except Exception:
+        return False
 
 
 # ── Connection manager ────────────────────────────────────────────────────────
@@ -121,6 +133,12 @@ async def websocket_endpoint(ws: WebSocket):
 
             if msg_type == "identify":
                 if msg.get("client_type") == "device":
+                    mac = msg.get("mac", "")
+                    if not await is_mac_whitelisted(mac):
+                        print(f"[auth] rejected device mac={mac!r} — not whitelisted", flush=True)
+                        await ws.send_text(json.dumps({"type": "error", "reason": "not_whitelisted"}))
+                        await ws.close(code=4403)
+                        return
                     is_device = True
                     device_id = msg.get("device_id", "unknown")
                     await database.upsert_device(
