@@ -37,9 +37,9 @@ function WelcomeScreen({ onStart, onSkip }) {
     <div className="shell">
       <div className="shell-hd">
         <Wordmark size={26} />
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        {/* <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span className="tag sage"><span className="dot live" />Studio online</span>
-        </div>
+        </div> */}
       </div>
       <div className="setup-stage fade-in" style={{ paddingTop: 24 }}>
         <div style={{ width: "100%", maxWidth: 980, textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 28 }}>
@@ -47,13 +47,12 @@ function WelcomeScreen({ onStart, onSkip }) {
             <FuseMark size={88} color="var(--pulse)" animate />
           </div>
           <div>
-            <div className="eyebrow" style={{ marginBottom: 10 }}>Welcome to today's session</div>
             <h1 className="serif" style={{ fontSize: "clamp(44px, 6.4vw, 76px)", lineHeight: 1.08, letterSpacing: "-0.015em", maxWidth: 820, margin: 0 }}>
-              Eighty heartbeats,<br /><span style={{ fontStyle: "italic", color: "var(--pulse)" }}>one&nbsp;rhythm</span> to&nbsp;build&nbsp;with.
+              Fuse<span style={{color: "var(--pulse)" }}>!</span> workshop.
             </h1>
           </div>
           <p style={{ fontSize: "clamp(15px, 1.4vw, 18px)", color: "var(--ink-2)", maxWidth: 620, lineHeight: 1.5, margin: 0 }}>
-            You've each got a small sensor on your bench. Over the next four hours we'll wake it up, share its pulse with your team, and build something that only works because the room is alive.
+            Signs of life on the dead internet.
           </p>
           <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
             <button className="btn btn-pulse btn-lg" onClick={onStart}>
