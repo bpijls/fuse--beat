@@ -114,9 +114,18 @@ app = FastAPI(lifespan=lifespan)
 app.include_router(router)
 
 
+def _read_firmware_version() -> str | None:
+    try:
+        p = os.path.join(os.path.dirname(__file__), "static", "firmware", "version.txt")
+        with open(p) as f:
+            return f.read().strip() or None
+    except OSError:
+        return None
+
+
 @app.get("/config")
 def get_config():
-    return {"ws_server": WS_SERVER}
+    return {"ws_server": WS_SERVER, "firmware_version": _read_firmware_version()}
 
 
 # ── WebSocket endpoint ────────────────────────────────────────────────────────

@@ -14,6 +14,10 @@ cat > include/version.h <<EOF
 EOF
 echo "[build] firmware version: ${VERSION}"
 
+# Write version for copy-firmware.sh to pick up
+mkdir -p .pio/build/esp32c3_supermini
+echo -n "${VERSION}" > .pio/build/esp32c3_supermini/version.txt
+
 # ── Build ─────────────────────────────────────────────────────────────────────
 if [[ "${1:-}" == "--test" ]]; then
     shift
