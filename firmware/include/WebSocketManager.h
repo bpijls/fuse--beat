@@ -15,8 +15,6 @@ private:
     String wsHost;
     int wsPort = 80;
     String wsPath = "/";
-    String deviceIdHex;
-    String deviceMacStr;
     String state;
 
     MessageCallback messageCallback;
@@ -30,7 +28,6 @@ private:
 public:
     WebSocketManager()
         : connected(false)
-        , deviceIdHex("0000")
         , state("DISCONNECTED")
         , hasNewMessage(false)
         , isInitialized(false)
@@ -39,17 +36,6 @@ public:
 
     void initialize(const String& wsUrl) {
         if (isInitialized) return;
-
-        uint8_t mac[6];
-        WiFi.macAddress(mac);
-        char idBuf[5];
-        snprintf(idBuf, sizeof(idBuf), "%02X%02X", mac[4], mac[5]);
-        deviceIdHex = String(idBuf);
-        char macBuf[18];
-        snprintf(macBuf, sizeof(macBuf), "%02X:%02X:%02X:%02X:%02X:%02X",
-                 mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-        deviceMacStr = String(macBuf);
-
         parseAndConnect(wsUrl);
         isInitialized = true;
     }
@@ -79,8 +65,13 @@ public:
     }
 
     bool isConnected() const { return connected; }
-    String getDeviceId() const { return deviceIdHex; }
-    String getMac() const { return deviceMacStr; }
+    String getDeviceId() const {
+        uint8_t mac[6];
+        WiFi.macAddress(mac);
+        char buf[5];
+        snprintf(buf, sizeof(buf), "%02X%02X", mac[4], mac[5]);
+        return String(buf);
+    }
     String getState() const { return state; }
 
     void disconnect() {
