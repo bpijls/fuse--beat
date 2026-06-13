@@ -5,7 +5,8 @@ from contextlib import asynccontextmanager
 
 import httpx
 from dotenv import load_dotenv
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 load_dotenv()
@@ -33,6 +34,8 @@ class ConnectionManager:
     def __init__(self):
         self.device_connections: dict[str, WebSocket] = {}
         self.client_subscriptions: dict[WebSocket, set[str]] = {}
+        self.last_heartbeat: dict[str, float] = {}   # device_id → epoch seconds
+        self.connected_at: dict[str, float] = {}     # device_id → epoch seconds
 
     async def _send(self, ws: WebSocket, payload: dict):
         try:
@@ -42,6 +45,7 @@ class ConnectionManager:
 
     async def connect_device(self, device_id: str, ws: WebSocket):
         self.device_connections[device_id] = ws
+        self.connected_at[device_id] = asyncio.get_event_loop().time()
 
     def disconnect_device(self, device_id: str):
         self.device_connections.pop(device_id, None)
@@ -61,6 +65,8 @@ class ConnectionManager:
             self.client_subscriptions[ws].discard(group_id)
 
     async def on_heartbeat(self, db, device_id: str, timestamp_ms: int):
+        import time
+        self.last_heartbeat[device_id] = time.time()
         device = await database.get_device(db, device_id)
         if not device:
             return
@@ -146,6 +152,7 @@ async def websocket_endpoint(ws: WebSocket):
                         device_id,
                         msg.get("color", "#FFFFFF"),
                         msg.get("feed_id"),
+                        msg.get("version"),
                     )
                     await manager.connect_device(device_id, ws)
                     manager.connect_client(ws)
@@ -188,6 +195,41 @@ async def websocket_endpoint(ws: WebSocket):
         if is_device and device_id:
             manager.disconnect_device(device_id)
         manager.disconnect_client(ws)
+
+
+# ── Admin ─────────────────────────────────────────────────────────────────────
+
+_admin_html = os.path.join(os.path.dirname(__file__), "static", "admin.html")
+
+@app.get("/admin", include_in_schema=False)
+async def admin_dashboard():
+    return FileResponse(_admin_html)
+
+
+@app.get("/admin/devices", include_in_schema=False)
+async def admin_devices(request: Request):
+    import time
+    db = request.app.state.db
+    devices = await database.get_all_devices(db)
+    result = []
+    for d in devices:
+        did = d["device_id"]
+        groups = await database.get_device_groups(db, did)
+        lhb = manager.last_heartbeat.get(did)
+        result.append({
+            **d,
+            "online": did in manager.device_connections,
+            "groups": groups,
+            "last_heartbeat": lhb,
+            "last_heartbeat_ago": round(time.time() - lhb) if lhb else None,
+        })
+    result.sort(key=lambda d: (not d["online"], d["device_id"]))
+    return {
+        "devices": result,
+        "online_count": sum(1 for d in result if d["online"]),
+        "total_count": len(result),
+        "server_time": time.time(),
+    }
 
 
 # ── Static files ──────────────────────────────────────────────────────────────

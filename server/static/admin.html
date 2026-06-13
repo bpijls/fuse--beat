@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FuseBeat · Admin</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:      #0e0d0c;
+    --surface: #181614;
+    --card:    #1f1c19;
+    --line:    #2e2a25;
+    --ink:     #f0ebe3;
+    --ink-2:   #9e9287;
+    --ink-3:   #5a5248;
+    --green:   #5d9e6b;
+    --red:     #c0504a;
+    --amber:   #c08b3a;
+    --mono:    'Geist Mono', 'Fira Code', ui-monospace, monospace;
+    --sans:    system-ui, -apple-system, sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    padding: 0 28px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .wordmark {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -.01em;
+    color: var(--ink);
+  }
+  .wordmark span { color: #c0504a; }
+
+  .badge {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: rgba(192,80,74,.18);
+    color: #e07a75;
+    border: 1px solid rgba(192,80,74,.3);
+  }
+
+  .spacer { flex: 1; }
+
+  #refresh-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--ink-3);
+    transition: background .2s;
+  }
+  #refresh-dot.active { background: var(--green); }
+
+  #refresh-label { font-size: 12px; color: var(--ink-3); }
+
+  main { padding: 28px; max-width: 1100px; margin: 0 auto; }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 18px 20px;
+  }
+  .stat-label { font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+  .stat-value { font-size: 32px; font-weight: 600; line-height: 1; }
+  .stat-value.green { color: var(--green); }
+  .stat-value.red   { color: var(--red); }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  thead { background: var(--surface); }
+  th {
+    text-align: left;
+    padding: 10px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    border-bottom: 1px solid var(--line);
+  }
+
+  td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: middle;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,.02); }
+
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 3px 9px;
+    border-radius: 20px;
+  }
+  .status.online  { background: rgba(93,158,107,.15); color: #7ec48c; border: 1px solid rgba(93,158,107,.3); }
+  .status.offline { background: rgba(90,82,72,.2);    color: var(--ink-3); border: 1px solid var(--line); }
+
+  .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .dot.online  { background: var(--green); box-shadow: 0 0 5px var(--green); animation: pulse 1.8s ease-in-out infinite; }
+  .dot.offline { background: var(--ink-3); }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: .35; }
+  }
+
+  .color-swatch {
+    width: 16px; height: 16px; border-radius: 50%;
+    display: inline-block;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.1);
+    flex-shrink: 0;
+  }
+
+  .device-name { font-weight: 500; }
+  .device-id   { font-family: var(--mono); font-size: 12px; color: var(--ink-2); }
+  .device-meta { display: flex; align-items: center; gap: 8px; }
+
+  .group-tag {
+    font-size: 11px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: rgba(255,255,255,.06);
+    border: 1px solid var(--line);
+    color: var(--ink-2);
+    font-family: var(--mono);
+  }
+
+  .heartbeat {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-2);
+  }
+  .heartbeat.recent { color: var(--green); }
+
+  .empty {
+    text-align: center;
+    padding: 48px 0;
+    color: var(--ink-3);
+    font-size: 13px;
+  }
+
+  .error-bar {
+    background: rgba(192,80,74,.12);
+    border: 1px solid rgba(192,80,74,.25);
+    color: #e07a75;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+    font-size: 13px;
+    display: none;
+  }
+  .error-bar.visible { display: block; }
+
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+    min-height: 36px;
+  }
+  .toolbar-label { font-size: 13px; color: var(--ink-2); }
+
+  .btn-delete {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid rgba(192,80,74,.4);
+    background: rgba(192,80,74,.12);
+    color: #e07a75;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background .15s, opacity .15s;
+  }
+  .btn-delete:hover  { background: rgba(192,80,74,.22); }
+  .btn-delete:active { opacity: .7; }
+  .btn-delete:disabled { opacity: .35; cursor: default; }
+
+  input[type=checkbox] {
+    width: 15px; height: 15px;
+    accent-color: var(--green);
+    cursor: pointer;
+  }
+
+  tr.selected td { background: rgba(93,158,107,.06); }
+  td.cb-cell { width: 36px; padding-left: 14px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wordmark">fuse<span>!</span>beat</div>
+  <div class="badge">admin</div>
+  <div class="spacer"></div>
+  <div id="refresh-dot"></div>
+  <div id="refresh-label">–</div>
+</header>
+
+<main>
+  <div class="error-bar" id="error-bar"></div>
+
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-label">Total devices</div>
+      <div class="stat-value" id="stat-total">–</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Online now</div>
+      <div class="stat-value green" id="stat-online">–</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Offline</div>
+      <div class="stat-value red" id="stat-offline">–</div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <span class="toolbar-label" id="sel-label"></span>
+    <button class="btn-delete" id="btn-delete" style="display:none" onclick="deleteSelected()">
+      ✕ Delete selected
+    </button>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th class="cb-cell"><input type="checkbox" id="select-all" onchange="toggleAll(this)"></th>
+        <th>Status</th>
+        <th>Device</th>
+        <th>Version</th>
+        <th>Color</th>
+        <th>Groups</th>
+        <th>Last heartbeat</th>
+      </tr>
+    </thead>
+    <tbody id="device-tbody">
+      <tr><td colspan="7" class="empty">Loading…</td></tr>
+    </tbody>
+  </table>
+</main>
+
+<script>
+const dot    = document.getElementById('refresh-dot');
+const label  = document.getElementById('refresh-label');
+const tbody  = document.getElementById('device-tbody');
+const errBar = document.getElementById('error-bar');
+const selLbl = document.getElementById('sel-label');
+const btnDel = document.getElementById('btn-delete');
+
+let selected = new Set();   // device_ids
+let paused   = false;       // pause auto-refresh during delete
+
+function flash() {
+  dot.classList.add('active');
+  setTimeout(() => dot.classList.remove('active'), 300);
+}
+
+function ago(seconds) {
+  if (seconds === null || seconds === undefined) return '—';
+  if (seconds < 5)    return 'just now';
+  if (seconds < 60)   return `${seconds}s ago`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  return `${Math.floor(seconds / 3600)}h ago`;
+}
+
+function updateToolbar() {
+  const n = selected.size;
+  selLbl.textContent = n ? `${n} selected` : '';
+  btnDel.style.display = n ? 'inline-flex' : 'none';
+  const selectAll = document.getElementById('select-all');
+  const allBoxes  = [...document.querySelectorAll('.row-cb')];
+  if (selectAll && allBoxes.length) {
+    selectAll.checked       = allBoxes.length > 0 && allBoxes.every(cb => selected.has(cb.dataset.id));
+    selectAll.indeterminate = n > 0 && !selectAll.checked;
+  }
+}
+
+function toggleRow(cb) {
+  cb.checked ? selected.add(cb.dataset.id) : selected.delete(cb.dataset.id);
+  const row = cb.closest('tr');
+  row.classList.toggle('selected', cb.checked);
+  updateToolbar();
+}
+
+function toggleAll(masterCb) {
+  document.querySelectorAll('.row-cb').forEach(cb => {
+    cb.checked = masterCb.checked;
+    cb.closest('tr').classList.toggle('selected', masterCb.checked);
+    masterCb.checked ? selected.add(cb.dataset.id) : selected.delete(cb.dataset.id);
+  });
+  updateToolbar();
+}
+
+async function deleteSelected() {
+  if (!selected.size) return;
+  const ids = [...selected];
+  const noun = ids.length === 1 ? 'device' : `${ids.length} devices`;
+  if (!confirm(`Delete ${noun}? This cannot be undone.`)) return;
+
+  paused = true;
+  btnDel.disabled = true;
+
+  await Promise.all(ids.map(id =>
+    fetch(`/devices/${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => {})
+  ));
+
+  selected.clear();
+  paused = false;
+  btnDel.disabled = false;
+  await refresh();
+}
+
+function render(data) {
+  document.getElementById('stat-total').textContent   = data.total_count;
+  document.getElementById('stat-online').textContent  = data.online_count;
+  document.getElementById('stat-offline').textContent = data.total_count - data.online_count;
+
+  if (!data.devices.length) {
+    tbody.innerHTML = `<tr><td colspan="7" class="empty">No devices registered yet.</td></tr>`;
+    updateToolbar();
+    return;
+  }
+
+  // Preserve current selection across re-renders
+  tbody.innerHTML = data.devices.map(d => {
+    const isSelected = selected.has(d.device_id);
+    const statusCls  = d.online ? 'online' : 'offline';
+    const hbAgo      = d.last_heartbeat_ago;
+    const hbCls      = (hbAgo !== null && hbAgo < 10) ? 'heartbeat recent' : 'heartbeat';
+    const groups     = d.groups.length
+      ? d.groups.map(g => `<span class="group-tag">${esc(g)}</span>`).join(' ')
+      : '<span style="color:var(--ink-3);font-size:12px">—</span>';
+
+    return `<tr class="${isSelected ? 'selected' : ''}">
+      <td class="cb-cell">
+        <input type="checkbox" class="row-cb" data-id="${esc(d.device_id)}"
+          ${isSelected ? 'checked' : ''} onchange="toggleRow(this)">
+      </td>
+      <td><span class="status ${statusCls}"><span class="dot ${statusCls}"></span>${statusCls}</span></td>
+      <td>
+        <div class="device-name">${esc(d.name || '(unnamed)')}</div>
+        <div class="device-id">${esc(d.device_id)}</div>
+      </td>
+      <td><span class="device-id">${esc(d.version || '—')}</span></td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="color-swatch" style="background:${esc(d.color)}"></span>
+          <span class="device-id">${esc(d.color)}</span>
+        </div>
+      </td>
+      <td>${groups}</td>
+      <td><span class="${hbCls}">${ago(hbAgo)}</span></td>
+    </tr>`;
+  }).join('');
+
+  updateToolbar();
+}
+
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function refresh() {
+  if (paused) return;
+  try {
+    const res  = await fetch('/admin/devices');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    flash();
+    errBar.classList.remove('visible');
+    render(data);
+    label.textContent = 'updated ' + new Date().toLocaleTimeString();
+  } catch (e) {
+    errBar.textContent = 'Could not reach server: ' + e.message;
+    errBar.classList.add('visible');
+    label.textContent = 'error';
+  }
+}
+
+refresh();
+setInterval(refresh, 3000);
+</script>
+</body>
+</html>

@@ -7,7 +7,8 @@ CREATE TABLE IF NOT EXISTS devices (
     device_id TEXT PRIMARY KEY,
     color     TEXT NOT NULL DEFAULT '#FF0000',
     feed_id   TEXT,
-    name      TEXT
+    name      TEXT,
+    version   TEXT
 );
 
 CREATE TABLE IF NOT EXISTS groups (
@@ -27,24 +28,26 @@ async def init_db() -> aiosqlite.Connection:
     db.row_factory = aiosqlite.Row
     await db.executescript(CREATE_SCHEMA)
     # Add name column if it doesn't exist yet (migration for existing DBs)
-    try:
-        await db.execute("ALTER TABLE devices ADD COLUMN name TEXT")
-        await db.commit()
-    except Exception:
-        pass  # column already exists
+    for col in ("name TEXT", "version TEXT"):
+        try:
+            await db.execute(f"ALTER TABLE devices ADD COLUMN {col}")
+            await db.commit()
+        except Exception:
+            pass  # column already exists
     return db
 
 
 # ── Devices ───────────────────────────────────────────────────────────────────
 
-async def upsert_device(db, device_id: str, color: str, feed_id: str | None):
+async def upsert_device(db, device_id: str, color: str, feed_id: str | None, version: str | None = None):
     await db.execute(
-        """INSERT INTO devices (device_id, color, feed_id, name)
-           VALUES (?, ?, ?, NULL)
+        """INSERT INTO devices (device_id, color, feed_id, name, version)
+           VALUES (?, ?, ?, NULL, ?)
            ON CONFLICT(device_id) DO UPDATE SET
                color=excluded.color,
-               feed_id=excluded.feed_id""",
-        (device_id, color, feed_id),
+               feed_id=excluded.feed_id,
+               version=excluded.version""",
+        (device_id, color, feed_id, version),
     )
     await db.commit()
 
@@ -68,6 +71,12 @@ async def get_device(db, device_id: str) -> dict | None:
 async def get_all_devices(db) -> list[dict]:
     async with db.execute("SELECT * FROM devices") as cur:
         return [dict(r) for r in await cur.fetchall()]
+
+
+async def delete_device(db, device_id: str) -> bool:
+    cur = await db.execute("DELETE FROM devices WHERE device_id = ?", (device_id,))
+    await db.commit()
+    return cur.rowcount > 0
 
 
 async def update_device_color(db, device_id: str, color: str) -> bool:

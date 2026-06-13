@@ -24,6 +24,12 @@ class NameUpdate(BaseModel):
     name: str
 
 
+@router.delete("/devices/{device_id}", status_code=204)
+async def delete_device(device_id: str, conn=Depends(get_db)):
+    if not await database.delete_device(conn, device_id):
+        raise HTTPException(404, "Device not found")
+
+
 @router.put("/devices/{device_id}/color")
 async def update_color(device_id: str, body: ColorUpdate, conn=Depends(get_db)):
     updated = await database.update_device_color(conn, device_id, body.color)
