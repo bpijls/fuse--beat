@@ -4,6 +4,17 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# ── Generate version header ───────────────────────────────────────────────────
+BASE="$(cat VERSION | tr -d '[:space:]')"
+HASH="$(git -C "$SCRIPT_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")"
+VERSION="${BASE}+${HASH}"
+cat > include/version.h <<EOF
+#pragma once
+#define FIRMWARE_VERSION "${VERSION}"
+EOF
+echo "[build] firmware version: ${VERSION}"
+
+# ── Build ─────────────────────────────────────────────────────────────────────
 if [[ "${1:-}" == "--test" ]]; then
     shift
     pio run --environment esp32c3_supermini_test "$@"

@@ -7,6 +7,7 @@
 #include "WebSocketManager.h"
 #include "ProcessManager.h"
 #include "processes/WiFiProcess.h"
+#include "version.h"
 
 extern bool rawSignalMode;
 
@@ -93,6 +94,8 @@ private:
             Serial.println(webSocketManager.getDeviceId());
             Serial.print("[Serial] MAC: ");
             Serial.println(WiFi.macAddress());
+            Serial.print("[Serial] Version: ");
+            Serial.println(FIRMWARE_VERSION);
             Serial.print("[Serial] Raw mode: ");
             Serial.println(rawSignalMode ? "ON" : "OFF");
         }
