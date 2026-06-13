@@ -235,8 +235,14 @@ async def admin_devices(request: Request):
 # ── Static files ──────────────────────────────────────────────────────────────
 
 _firmware_dir = os.path.join(os.path.dirname(__file__), "static", "firmware")
-if os.path.isdir(_firmware_dir):
-    app.mount("/firmware", StaticFiles(directory=_firmware_dir), name="firmware")
+
+@app.get("/firmware/{filename}", include_in_schema=False)
+async def serve_firmware(filename: str):
+    path = os.path.join(_firmware_dir, filename)
+    if not os.path.isfile(path):
+        from fastapi import HTTPException
+        raise HTTPException(404)
+    return FileResponse(path, headers={"Cache-Control": "no-store"})
 
 _static_dir = os.environ.get("STATIC_DIR", "")
 if _static_dir and os.path.isdir(_static_dir):
