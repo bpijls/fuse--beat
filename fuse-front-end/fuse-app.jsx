@@ -17,14 +17,10 @@ function App() {
   const [sensorName, setSensorName] = React.useState("");
   const [deviceMac, setDeviceMac] = React.useState(null);
   const [wsServer, setWsServer] = React.useState(null);
-  const [firmwareVersion, setFirmwareVersion] = React.useState(null);
   const socket = useFuseSocket();
 
   React.useEffect(() => {
-    fetch("/config").then(r => r.json()).then(d => {
-      setWsServer(d.ws_server);
-      setFirmwareVersion(d.firmware_version || null);
-    }).catch(() => {});
+    fetch("/config").then(r => r.json()).then(d => setWsServer(d.ws_server)).catch(() => {});
   }, []);
 
   // "Me" — a stable participant for this session
@@ -55,7 +51,7 @@ function App() {
   return (
     <>
       {screen === "welcome"  && <WelcomeScreen  onStart={() => goTo("firmware")} onSkip={() => goTo("studio")} />}
-      {screen === "firmware" && <FirmwareScreen firmwareVersion={firmwareVersion} onNext={(mac) => { setDeviceMac(mac); goTo("network"); }} />}
+      {screen === "firmware" && <FirmwareScreen onNext={(mac) => { setDeviceMac(mac); goTo("network"); }} />}
       {screen === "network"  && <NetworkScreen  mac={deviceMac || me.mac} wsServer={wsServer} onNext={(nm) => { setSensorName(nm && nm.trim()); goTo("ready"); }} />}
       {screen === "ready"    && <ReadyScreen    name={sensorName || me.name} onEnter={() => goTo("studio")} />}
       {screen === "studio"   && (

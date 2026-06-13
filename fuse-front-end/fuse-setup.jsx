@@ -79,7 +79,7 @@ function WelcomeScreen({ onStart, onSkip }) {
 }
 
 // ─── 1. Firmware (real WebSerial flash via esp-web-tools) ────
-function FirmwareScreen({ onNext, firmwareVersion }) {
+function FirmwareScreen({ onNext }) {
   // idle | checking | verified | blocked | failed
   const [phase, setPhase] = useStateS("idle");
   const [deviceMac, setDeviceMac] = useStateS(null);
@@ -179,9 +179,7 @@ function FirmwareScreen({ onNext, firmwareVersion }) {
 
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
                 <esp-web-install-button manifest="/firmware/manifest.json">
-                  <button slot="activate" className="btn btn-pulse">
-                    {firmwareVersion ? `Install FuseBeat (${firmwareVersion}) →` : "Flash firmware →"}
-                  </button>
+                  <button slot="activate" className="btn btn-pulse">Flash firmware →</button>
                   <span slot="unsupported" style={{ fontSize: 13, color: "var(--pulse)" }}>
                     WebSerial requires Chrome or Edge — other browsers aren't supported.
                   </span>
