@@ -9,7 +9,7 @@ function StudioHeader({ tab, setTab, me, bpm, onReprovision, wsConnected }) {
       <div style={{ display:"flex", alignItems:"center", gap: 18 }}>
         <Wordmark size={26} />
         <span style={{ width: 1, height: 22, background: "var(--line)" }}/>
-        <span className="eyebrow">Studio · live</span>
+        {/* <span className="eyebrow">Studio · live</span> */}
       </div>
       <div className="tabs">
         {[

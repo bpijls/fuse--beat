@@ -272,11 +272,51 @@ function FuseMarkInline({ x = 0, y = 0, size = 20 }) {
 
 }
 
+// ─── Hue picker ──────────────────────────────────────────────
+function hueToHex(h) {
+  const l = 0.5, a = Math.min(l, 1 - l);
+  const f = n => {
+    const k = (n + h / 30) % 12;
+    return Math.round(255 * (l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)))).toString(16).padStart(2, "0");
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+
+function HuePicker({ hue, onChange }) {
+  const spectrum = "linear-gradient(to right," +
+    "hsl(0,100%,50%),hsl(30,100%,50%),hsl(60,100%,50%),hsl(90,100%,50%)," +
+    "hsl(120,100%,50%),hsl(150,100%,50%),hsl(180,100%,50%),hsl(210,100%,50%)," +
+    "hsl(240,100%,50%),hsl(270,100%,50%),hsl(300,100%,50%),hsl(330,100%,50%),hsl(359,100%,50%))";
+  const pct = (hue / 359) * 100;
+  return (
+    <div style={{ position: "relative", height: 44 }}>
+      <div style={{ position: "absolute", inset: 0, borderRadius: 8, background: spectrum, boxShadow: "inset 0 0 0 1px rgba(0,0,0,.1)" }} />
+      <input
+        type="range" min="0" max="359" value={hue}
+        onChange={e => onChange(+e.target.value)}
+        style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", height: "100%", margin: 0 }}
+      />
+      <div style={{
+        position: "absolute",
+        left: `calc(${pct}% - 12px)`,
+        top: "50%", transform: "translateY(-50%)",
+        width: 24, height: 24, borderRadius: "50%",
+        background: `hsl(${hue},100%,50%)`,
+        border: "2.5px solid #fff",
+        boxShadow: "0 1px 5px rgba(0,0,0,.35)",
+        pointerEvents: "none",
+        transition: "left .05s",
+      }} />
+    </div>
+  );
+}
+
 // ─── 2. Network ──────────────────────────────────────────────
 function NetworkScreen({ mac, wsServer, onNext }) {
   const [ssid, setSsid] = useStateS("iotroam");
   const [pw, setPw] = useStateS("");
   const [sensorName, setSensorName] = useStateS("");
+  const [hue, setHue] = useStateS(0);
   const [phase, setPhase] = useStateS("idle"); // idle | submitting | registered
   const [registeredId, setRegisteredId] = useStateS(null);
   const canSubmit = ssid.length > 1 && pw.length > 3 && sensorName.trim().length > 0;
@@ -284,6 +324,7 @@ function NetworkScreen({ mac, wsServer, onNext }) {
   const submit = async () => {
     if (!canSubmit) return;
     setPhase("submitting");
+    const colorHex = hueToHex(hue);
     try {
       const enc = new TextEncoder();
       const dec = new TextDecoder();
@@ -315,23 +356,30 @@ function NetworkScreen({ mac, wsServer, onNext }) {
         deviceId = idMatch ? idMatch[1] : null;
       }
 
-      // ── Provision WiFi + server URL ───────────────────────
+      // ── Provision WiFi + server URL + color ──────────────
       const serverUrl = wsServer || `ws://${window.location.host}/ws`;
       await writer.write(enc.encode(`wifi ${ssid} ${pw}\n`));
       await new Promise(r => setTimeout(r, 800));
       await writer.write(enc.encode(`server ${serverUrl}\n`));
       await new Promise(r => setTimeout(r, 800));
+      await writer.write(enc.encode(`color ${colorHex}\n`));
+      await new Promise(r => setTimeout(r, 400));
 
       writer.releaseLock();
       await port.close();
 
-      // ── Save sensor name to server ────────────────────────
-      if (deviceId && sensorName.trim()) {
-        await fetch(`/devices/${deviceId}/name`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: sensorName.trim() }),
-        }).catch(() => {});
+      // ── Save sensor name + color to server ────────────────
+      if (deviceId) {
+        await Promise.all([
+          sensorName.trim() && fetch(`/devices/${deviceId}/name`, {
+            method: "PUT", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: sensorName.trim() }),
+          }).catch(() => {}),
+          fetch(`/devices/${deviceId}/color`, {
+            method: "PUT", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ color: colorHex }),
+          }).catch(() => {}),
+        ]);
         setRegisteredId(deviceId);
       }
 
@@ -390,6 +438,14 @@ function NetworkScreen({ mac, wsServer, onNext }) {
                   style={{ fontSize: 16, height: 48 }}
                 />
                 <div style={{ fontSize: 11, color: "var(--ink-3)" }}>We'll use this to say hi and label your beat in the room view.</div>
+              </div>
+              <div className="field">
+                <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  Sensor colour
+                  <span style={{ width: 14, height: 14, borderRadius: "50%", background: `hsl(${hue},100%,50%)`, display: "inline-block", boxShadow: "0 0 0 1.5px rgba(0,0,0,.12)" }} />
+                </label>
+                <HuePicker hue={hue} onChange={setHue} />
+                <div style={{ fontSize: 11, color: "var(--ink-3)" }}>Pick a hue — this is the colour your heartbeat pulses in the room view.</div>
               </div>
               <div className="field">
                 <label>SSID</label>
